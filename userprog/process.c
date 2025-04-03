@@ -30,6 +30,7 @@ static void push_argument(void **esp, char *cmdline);
 tid_t
 process_execute (const char *file_name) 
 {
+  printf("====================================\n");
   char *fn_copy, *fn_copy2;
   tid_t tid;
 
@@ -62,6 +63,42 @@ process_execute (const char *file_name)
 // lab01 Hint - This is the mainly function you have to trace.
 static void push_argument(void **esp, char *cmdline)
 {
+  printf("push_argument: %s\n", cmdline);
+  char *save_ptr;
+  char *token;
+  char **argv = malloc(100 * sizeof(char*));
+  int argc = 0;
+
+  token = strtok_r(cmdline, " ", &save_ptr);
+  while (token != NULL)
+  {
+    argv[argc++] = token;
+    token = strtok_r(NULL, " ", &save_ptr);
+  }
+
+  // Align the stack pointer
+  *esp -= (sizeof(char*) * (argc + 1));
+  memcpy(*esp, argv, sizeof(char*) * (argc + 1));
+
+  // Push the address of the first argument
+  char **arg_addr = (char**)(*esp);
+  for (int i = argc; i >= 0; i--)
+    arg_addr[i] = (char*)((uint8_t*)(*esp) + sizeof(char*) * i);
+
+  // Push the address of argv
+  *esp -= sizeof(char**);
+  memcpy(*esp, &arg_addr, sizeof(char**));
+
+  // Push argc
+  *esp -= sizeof(int);
+  memcpy(*esp, &argc, sizeof(int));
+
+  // Push return address
+  *esp -= sizeof(void*);
+  memset(*esp, 0, sizeof(void*));
+
+  free(argv);
+  printf("push_argument done\n");
 
 }
 
