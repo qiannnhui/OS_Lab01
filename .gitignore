@@ -3,5 +3,5 @@ cscope.out
 TAGS
 tags
 **/*.o
-**/*.DS_Store
+*.DS_Store
 **/docker-compose.yaml

@@ -18,10 +18,12 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void push_argument(void **esp, char *cmdline);
+static struct semaphore sema ;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -50,6 +52,10 @@ process_execute (const char *file_name)
   fn_copy = strtok_r(fn_copy, " ", &save_ptr);
 
   tid = thread_create(fn_copy, PRI_DEFAULT, start_process, fn_copy2);
+  
+	sema_init(&sema, 0) ;
+	sema_down(&sema) ;
+
   free(fn_copy);
 
   if (tid == TID_ERROR){
@@ -133,6 +139,7 @@ static void start_process (void *file_name_)
   }
 
   free(fn_copy);
+	sema_up(&sema) ;
   
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -383,7 +390,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+//   file_close (file);
   return success;
 }
 
