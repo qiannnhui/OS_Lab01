@@ -88,7 +88,7 @@ process_execute (const char *file_name)
 
 // lab01 Hint - This is the mainly function you have to trace.
 static void push_argument(void **esp, char *cmdline) {
-    printf("push_argument: %s\n", cmdline);
+    // printf("push_argument: %s\n", cmdline);
     char *save_ptr;
     // char *argv[50];  // 假設參數不超過 99 個
     int argv[50] ;
@@ -130,8 +130,8 @@ static void push_argument(void **esp, char *cmdline) {
 
     // 壓入 argv[0] 的地址（當前 esp 指向的位置）
     void *argv0_addr = *esp;
-    *(int *)*esp -= sizeof(void*);
-    *(int *)*esp = (int)argv0_addr ;
+    *esp -= sizeof(void*);
+    *(void **)*esp = argv0_addr;
     // *(char ***)*esp = (char **)argv0_addr;
     // *esp = argv ;
 
@@ -142,7 +142,7 @@ static void push_argument(void **esp, char *cmdline) {
     // 壓入結尾 0
     *esp -= sizeof(int);
     *(int *)*esp = 0;
-    printf("push_argument done\n");
+    // printf("push_argument done\n");
   }
 
 
