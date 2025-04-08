@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +24,28 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+
+// Represents the thread as a child process, stores everything
+// the parent needs to know, persists even after the child process
+// exits, only the parent can destroy it.
+struct child_thread_elem
+  {
+    int exit_status;                 /* returned by wait (). */
+    int loading_status;              /* to inform parent if the load was successful. */
+    struct semaphore wait_sema;      /* used by the parent to block on a child when
+                                        wait () is called on it. */
+    tid_t tid;
+    struct thread *t;                /* pointer to the thread, can be NULL if the process exits. */
+    struct list_elem elem;           /* used by parent to put its children in a list. */
+  };
+  
+struct thread_file
+  {
+    int fd;
+    struct file* file;
+    struct list_elem file_elem;
+  };
 
 /* A kernel thread or user process.
 
@@ -82,6 +105,7 @@ typedef int tid_t;
    blocked state is on a semaphore wait list. */
 struct thread
   {
+    int st_exit;                     /* exit status of the thread. */
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
@@ -100,6 +124,16 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+    
+    /* used by syscalls */
+    struct list children_list;            /* If this thread is a user process thread
+                                             this list contains all child process
+                                             created using exec syscall */
+    struct child_thread_elem *child_elem; /* A pointer will be allocated by exec
+                                             syscall to be able to be accessed by
+                                             parent if this thread is destroyed */
+    struct list file_table;
+
   };
 
 /* If false (default), use round-robin scheduler.

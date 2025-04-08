@@ -284,12 +284,18 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+  /* check if parent is still alive */
+  if (thread_current ()->child_elem != NULL)
+    sema_up (&(thread_current ()->child_elem->wait_sema));
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+  // print exit status
+  printf ("%s: exit(%d)\n",thread_name(), thread_current()->st_exit);
+  
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -463,6 +469,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->st_exit = UINT32_MAX;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -582,3 +589,32 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+
+struct child_thread_elem *
+thread_get_child (tid_t tid)
+{
+  struct list *children = &thread_current ()->children_list;
+  struct list_elem *e = list_begin (children);
+  struct child_thread_elem *child_elem;
+  for(;e != list_end (children); e = list_next (e))
+    {
+      child_elem = list_entry (e, struct child_thread_elem, elem);
+      if(child_elem->tid == tid)
+        return child_elem;
+    }
+  return NULL;
+}
+
+bool
+remove_child (tid_t tid)
+{
+  struct child_thread_elem *child_elem = thread_get_child (tid);
+  if (child_elem == NULL)
+    return false;
+  list_remove (&child_elem->elem);
+  free (child_elem);
+
+  return true;
+}

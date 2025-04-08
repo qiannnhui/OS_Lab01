@@ -23,7 +23,14 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void push_argument(void **esp, char *cmdline);
-static struct semaphore sema ;
+// static struct semaphore sema ;
+
+struct start_process_args
+{
+    char *file_name;
+    struct semaphore *loading_sema;
+    struct thread *parent;
+};
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -32,7 +39,11 @@ static struct semaphore sema ;
 tid_t
 process_execute (const char *file_name) 
 {
-  printf("====================================\n");
+  // init of start_process_args
+  struct start_process_args args;
+  struct thread *cur = thread_current ();
+  struct semaphore sema;
+
   char *fn_copy, *fn_copy2;
   tid_t tid;
 
@@ -51,10 +62,18 @@ process_execute (const char *file_name)
   char *save_ptr;
   fn_copy = strtok_r(fn_copy, " ", &save_ptr);
 
-  tid = thread_create(fn_copy, PRI_DEFAULT, start_process, fn_copy2);
+  // assign values to start_process_args
+  sema_init(&sema, 0) ;
+  args.file_name = fn_copy2;
+  args.loading_sema = &sema;
+  args.parent = cur;
+
+  // create a new thread
+  // tid = thread_create(fn_copy, PRI_DEFAULT, start_process, fn_copy2);
+  tid = thread_create(fn_copy, PRI_DEFAULT, start_process, &args);
   
-	sema_init(&sema, 0) ;
-	sema_down(&sema) ;
+	// sema_init(&sema, 0) ;
+	// sema_down(&sema) ;
 
   free(fn_copy);
 
@@ -62,57 +81,77 @@ process_execute (const char *file_name)
     free (fn_copy2); 
     return TID_ERROR;
   }
+  else sema_down(&sema) ;
 
   return tid;
 }
 
 // lab01 Hint - This is the mainly function you have to trace.
-static void push_argument(void **esp, char *cmdline)
-{
-  printf("push_argument: %s\n", cmdline);
-  char *save_ptr;
-  char *token;
-  char **argv = malloc(100 * sizeof(char*));
-  int argc = 0;
+static void push_argument(void **esp, char *cmdline) {
+    printf("push_argument: %s\n", cmdline);
+    char *save_ptr;
+    char *argv[50];  // 假設參數不超過 99 個
+    int argc = 0;
 
-  token = strtok_r(cmdline, " ", &save_ptr);
-  while (token != NULL)
-  {
-    argv[argc++] = token;
-    token = strtok_r(NULL, " ", &save_ptr);
+    // 解析命令參數
+    char *token = strtok_r(cmdline, " ", &save_ptr);
+    while (token != NULL && argc < 99) {
+      argv[argc++] = token;
+      token = strtok_r(NULL, " ", &save_ptr);
+    }
+
+    // 棧指針對齊到 4 字節
+    *esp = (void*)((uintptr_t)*esp & ~3);
+
+    // 壓入初始 0
+    *esp -= sizeof(int);
+    *(int *)*esp = 0;
+
+    // 反向壓入參數 (argv[argc-1] 到 argv[0])
+    for (int i = argc - 1; i >= 0; i--) {
+      *esp -= sizeof(char*);
+      *(char **)*esp = argv[i];
+    }
+
+    // 壓入 argv[0] 的地址（當前 esp 指向的位置）
+    void *argv0_addr = *esp;
+    *esp -= sizeof(char**);
+    *(char ***)*esp = (char **)argv0_addr;
+
+    // 壓入 argc
+    *esp -= sizeof(int);
+    *(int *)*esp = argc;
+
+    // 壓入結尾 0
+    *esp -= sizeof(int);
+    *(int *)*esp = 0;
+    printf("push_argument done\n");
   }
 
-  // Align the stack pointer
-  *esp -= (sizeof(char*) * (argc + 1));
-  memcpy(*esp, argv, sizeof(char*) * (argc + 1));
-
-  // Push the address of the first argument
-  char **arg_addr = (char**)(*esp);
-  for (int i = argc; i >= 0; i--)
-    arg_addr[i] = (char*)((uint8_t*)(*esp) + sizeof(char*) * i);
-
-  // Push the address of argv
-  *esp -= sizeof(char**);
-  memcpy(*esp, &arg_addr, sizeof(char**));
-
-  // Push argc
-  *esp -= sizeof(int);
-  memcpy(*esp, &argc, sizeof(int));
-
-  // Push return address
-  *esp -= sizeof(void*);
-  memset(*esp, 0, sizeof(void*));
-
-  free(argv);
-  printf("push_argument done\n");
-
-}
 
 /* A thread function that loads a user process and starts it
    running. */
-static void start_process (void *file_name_)
+static void start_process (void *_args)
 {
-  char *file_name = file_name_;
+  // get start_process_args information
+  struct start_process_args *args = _args;
+  char *file_name = args->file_name;
+
+  // init children list
+  struct thread *cur = thread_current ();
+  list_init(&args->parent->children_list);  // 確保父線程的children_list已經初始化
+  struct child_thread_elem *child_elem = malloc (sizeof(struct child_thread_elem));
+  if (child_elem == NULL) {
+      printf("Failed to allocate memory for child thread element.\n");
+      return TID_ERROR; // 無法分配內存，返回錯誤
+  }
+  child_elem->exit_status = -1;
+  sema_init (&child_elem->wait_sema, 0);
+  child_elem->tid = cur->tid;
+  child_elem->t = cur;
+  cur->child_elem = child_elem;
+  list_push_back (&args->parent->children_list, &child_elem->elem); // push the child to parent list
+
   struct intr_frame if_;
   bool success;
 
@@ -132,14 +171,19 @@ static void start_process (void *file_name_)
   if(success)
   {
     push_argument (&if_.esp, fn_copy);
-  }else
+    child_elem->loading_status = 0;
+    // sema_up (args->loading_sema);
+  }
+  else
   {
     /* If load failed, quit. */
+    child_elem->loading_status = -1;
+    // sema_up (args->loading_sema);
     thread_exit ();
   }
 
   free(fn_copy);
-	sema_up(&sema) ;
+	sema_up(args->loading_sema);
   
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -162,11 +206,25 @@ static void start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-   int
-   process_wait (tid_t child_tid UNUSED) 
-   {
-     return -1;
-   }
+  //  has child_thread_elem
+  int
+  process_wait (tid_t child_tid)
+  {
+    struct child_thread_elem *child = thread_get_child (child_tid);
+    /* this tid is not a direct child of current process
+      or it has waited for it before */
+    if (child == NULL)
+      return -1;
+
+    /* if the child process still running block for it */
+    if (child->t != NULL && child->t->status != THREAD_DYING) // try to remove != NULL
+      sema_down (&child->wait_sema);
+
+    int status = child->exit_status;
+    remove_child (child_tid);
+
+    return status;
+  }
 
 /* Free the current process's resources. */
 void
