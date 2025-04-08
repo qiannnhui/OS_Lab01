@@ -71,6 +71,20 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/*Use a lock to lock process when do file operation*/
+static struct lock lock_f;
+void 
+acquire_lock_f ()
+{
+  lock_acquire(&lock_f);
+}
+
+void 
+release_lock_f ()
+{
+  lock_release(&lock_f);
+}
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -296,6 +310,24 @@ thread_exit (void)
   // print exit status
   printf ("%s: exit(%d)\n",thread_name(), thread_current()->st_exit);
   
+
+  // /*Close all the files*/
+  // /*Our implementation for fixing the BUG that the file didn't close, PASS test file*/
+  // struct list_elem *e;
+  // struct list *files = &thread_current()->files;
+  // while(!list_empty (files))
+  // {
+  //   e = list_pop_front (files);
+  //   struct thread_file *f = list_entry (e, struct thread_file, file_elem);
+  //   acquire_lock_f ();
+  //   file_close (f->file);
+  //   release_lock_f ();
+  //   /*Remove the file in the list*/
+  //   list_remove (e);
+  //   /*Free the resource the file obtain*/
+  //   free (f);
+  // }
+
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -470,6 +502,23 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->st_exit = UINT32_MAX;
+
+  
+  // //syscall
+  // if (t==initial_thread) t->parent=NULL;
+  // /* Record the parent's thread */
+  // else t->parent = thread_current ();
+  // /* List initialization for lists */
+  // list_init (&t->childs);
+  // list_init (&t->files);
+  // /* Semaphore initialization for lists */
+  // sema_init (&t->sema, 0);
+  // t->success = true;
+  // /* Initialize exit status to MAX */
+  // t->max_file_fd=2;//not 0 or 1
+
+
+
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

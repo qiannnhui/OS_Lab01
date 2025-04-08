@@ -39,7 +39,7 @@ struct child_thread_elem
     struct thread *t;                /* pointer to the thread, can be NULL if the process exits. */
     struct list_elem elem;           /* used by parent to put its children in a list. */
   };
-  
+
 struct thread_file
   {
     int fd;
@@ -132,7 +132,8 @@ struct thread
     struct child_thread_elem *child_elem; /* A pointer will be allocated by exec
                                              syscall to be able to be accessed by
                                              parent if this thread is destroyed */
-    struct list file_table;
+    struct list files;                     /* List of files opened by this thread */
+    int max_file_fd;                       /*store max fd */
 
   };
 
