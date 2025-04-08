@@ -90,17 +90,31 @@ process_execute (const char *file_name)
 static void push_argument(void **esp, char *cmdline) {
     printf("push_argument: %s\n", cmdline);
     char *save_ptr;
-    char *argv[50];  // 假設參數不超過 99 個
+    // char *argv[50];  // 假設參數不超過 99 個
+    int argv[50] ;
     int argc = 0;
 
+    char* token ;
     // 解析命令參數
-    char *token = strtok_r(cmdline, " ", &save_ptr);
-    while (token != NULL && argc < 99) {
-      argv[argc++] = token;
-      token = strtok_r(NULL, " ", &save_ptr);
+    // char *token = strtok_r(cmdline, " ", &save_ptr);
+    // *esp -= (strlen(token)+1) ;
+    // memcpy(esp, token, strlen(token) + 1 ) ;
+
+    // while (token != NULL && argc < 99) {
+    //   argv[argc++] = token;
+    //   token = strtok_r(NULL, " ", &save_ptr);
+    // }
+
+    for (token = strtok_r (cmdline, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+      // printf("esp: %x\n", (int*)(*esp)) ;
+      // printf("strlen %d\n", strlen(token)) ;
+      *esp -= (strlen(token)+1);
+      memcpy (*esp, token, strlen(token)+1);
+      // printf("%s\n", (char*)*esp) ;
+      argv[argc++] = (int)*esp;
     }
 
-    // 棧指針對齊到 4 字節
+    // word align
     *esp = (void*)((uintptr_t)*esp & ~3);
 
     // 壓入初始 0
@@ -109,14 +123,17 @@ static void push_argument(void **esp, char *cmdline) {
 
     // 反向壓入參數 (argv[argc-1] 到 argv[0])
     for (int i = argc - 1; i >= 0; i--) {
-      *esp -= sizeof(char*);
-      *(char **)*esp = argv[i];
+      *esp -= sizeof(int*);
+      *(int*)*esp = argv[i];
+      // printf("%s\n", (char*)argv[i]) ;
     }
 
     // 壓入 argv[0] 的地址（當前 esp 指向的位置）
     void *argv0_addr = *esp;
-    *esp -= sizeof(char**);
-    *(char ***)*esp = (char **)argv0_addr;
+    *(int *)*esp -= sizeof(void*);
+    *(int *)*esp = (int)argv0_addr ;
+    // *(char ***)*esp = (char **)argv0_addr;
+    // *esp = argv ;
 
     // 壓入 argc
     *esp -= sizeof(int);
