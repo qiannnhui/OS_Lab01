@@ -16,9 +16,12 @@
 #include <threads/vaddr.h>
 #include <filesys/filesys.h>
 
+
 #define MAX_SYSCALL 20
 
 // lab01 Hint - Here are the system calls you need to implement.
+
+static struct lock file_sys_lock;
 
 /* System call for process. */
 
@@ -127,14 +130,30 @@ void sys_wait(struct intr_frame *f)
 	printf("wait\n");
 }
 
-void sys_create(struct intr_frame *f)
+void 
+sys_create(struct intr_frame* f)
 {
-	printf("create\n");
+	printf("create\n") ;
+  uint32_t *user_ptr = f->esp;
+  is_valid_addr (user_ptr + 5);
+  is_valid_addr (*(user_ptr + 4));
+  *user_ptr++;
+  acquire_lock_f ();
+  f->eax = filesys_create ((const char *)*user_ptr, *(user_ptr+1));
+  release_lock_f ();
 }
 
-void sys_remove(struct intr_frame *f)
+/* Do system remove, by calling the method filesys_remove */
+void 
+sys_remove(struct intr_frame* f)
 {
-	printf("remove\n");
+  uint32_t *user_ptr = f->esp;
+  is_valid_addr (user_ptr + 1);
+  is_valid_addr (*(user_ptr + 1));
+  *user_ptr++;
+  acquire_lock_f ();
+  f->eax = filesys_remove ((const char *)*user_ptr);
+  release_lock_f ();
 }
 
 void sys_open(struct intr_frame *f)
@@ -164,7 +183,42 @@ void sys_close(struct intr_frame *f)
 
 void sys_read(struct intr_frame *f)
 {
-	printf("read\n");
+	// printf("read\n");
+	// todo: old code
+  uint32_t *user_ptr = f->esp;
+  is_valid_addr(user_ptr + 7);//for tests maybe?
+  is_valid_addr(*(user_ptr + 6));
+  *user_ptr++;
+  int fd = *user_ptr;
+  char * buffer = (const char *)*(user_ptr+1);
+  off_t size = *(user_ptr+2);
+
+  if (fd < 0 || fd == 1) {
+		f->eax = -1;
+		return -1;
+	}
+  
+  if (fd == 0) {//writes to the console
+    /* Use putbuf to do testing */
+    for (int i = 0; i < size; i++)
+      buffer[i] = input_getc();
+    f->eax = size;//return number written
+  }
+  else
+  {
+    /* Write to Files */
+    struct thread_file * thread_file_temp = find_file_id (*user_ptr);
+    if (thread_file_temp)
+    {
+      acquire_lock_f ();//file operating needs lock
+      f->eax = file_read (thread_file_temp->file, buffer, size);
+      release_lock_f ();
+    } 
+    else
+    {
+      f->eax = 0;//can't write,return 0
+    }
+  }
 }
 
 void sys_write (struct intr_frame* f)
@@ -177,6 +231,12 @@ void sys_write (struct intr_frame* f)
   int fd = *user_ptr;
   const char * buffer = (const char *)*(user_ptr+1);
   off_t size = *(user_ptr+2);
+
+  if (fd <= 0) {
+		f->eax = -1;
+		return;
+	}
+  
   if (fd == 1) {//writes to the console
     /* Use putbuf to do testing */
     putbuf(buffer,size);
