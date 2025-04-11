@@ -121,7 +121,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
 /* Looks up the physical address that corresponds to user virtual
    address UADDR in PD.  Returns the kernel virtual address
    corresponding to that physical address, or a null pointer if
-   UADDR is unmapped. */
+   UADDR is unmapped. (do the thing like Memory Management Unit, MMU) */
 void *
 pagedir_get_page (uint32_t *pd, const void *uaddr) 
 {
