@@ -115,7 +115,11 @@ sys_exit(struct intr_frame *f)
 
 void sys_exec(struct intr_frame *f)
 {
-	printf("exec\n");
+  uint32_t *user_ptr = f->esp;
+  is_valid_addr(user_ptr + 1); // check if the next uaddr valid
+  is_valid_addr(*(user_ptr + 1)); // check if the file name valid
+  char *file_name = (char *)*(user_ptr + 1); // get file name
+  f->eax = process_execute(file_name); // execute the file
 }
 
 void sys_wait(struct intr_frame *f)
