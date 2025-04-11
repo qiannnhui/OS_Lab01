@@ -226,17 +226,58 @@ void sys_open(struct intr_frame *f)
 
 void sys_filesize(struct intr_frame *f)
 {
-  printf("filesize\n");
+  uint32_t *user_ptr = f->esp;
+  int fd = *(user_ptr + 1);
+
+  struct thread_file *t_file = find_file_id(fd);
+  if (t_file == NULL || t_file->closed)
+  {
+    f->eax = -1; // File doesn't exist or is closed
+    return;
+  }
+
+  acquire_lock_f();
+  off_t size = file_length(t_file->file); // Get the file size
+  release_lock_f();
+  f->eax = size; // success
+  //printf("[DEBUG] %s: filesize fd=%d size=%d\n", thread_name(), fd, size);
 }
 
 void sys_seek(struct intr_frame *f)
 {
-  printf("seek\n");
+  uint32_t *user_ptr = f->esp;
+  int fd = *(user_ptr + 1);
+  unsigned position = *(user_ptr + 2);
+
+  struct thread_file *t_file = find_file_id(fd);
+  if (t_file == NULL || t_file->closed)
+  {
+    f->eax = -1; // File doesn't exist or is closed
+    return;
+  }
+
+  acquire_lock_f();
+  file_seek(t_file->file, position); // Seek to the specified position
+  release_lock_f();
+  //printf("[DEBUG] %s: seek fd=%d to position=%u\n", thread_name(), fd, position);
 }
 
 void sys_tell(struct intr_frame *f)
 {
-  printf("tell\n");
+  uint32_t *user_ptr = f->esp;
+  int fd = *(user_ptr + 1);
+
+  struct thread_file *t_file = find_file_id(fd);
+  if (t_file == NULL || t_file->closed)
+  {
+    f->eax = -1; // File doesn't exist or is closed
+    return;
+  }
+
+  acquire_lock_f();
+  off_t position = file_tell(t_file->file); // Get the current position
+  release_lock_f();
+  f->eax = position; // success
 }
 
 void sys_close(struct intr_frame *f)
@@ -265,42 +306,42 @@ void sys_close(struct intr_frame *f)
 
 void sys_read(struct intr_frame *f)
 {
-	// printf("read\n");
-	// todo: old code
   uint32_t *user_ptr = f->esp;
-  is_valid_addr(user_ptr + 7);//for tests maybe?
-  is_valid_addr(*(user_ptr + 6));
-  *user_ptr++;
-  int fd = *user_ptr;
-  char * buffer = (const char *)*(user_ptr+1);
-  off_t size = *(user_ptr+2);
+  int fd = *(user_ptr + 1);
+  char *buffer = (char *)*(user_ptr + 2);
+  unsigned size = *(user_ptr + 3);
 
-  if (fd < 0 || fd == 1) {
-		f->eax = -1;
-		return -1;
-	}
-  
-  if (fd == 0) {//writes to the console
-    /* Use putbuf to do testing */
-    for (int i = 0; i < size; i++)
-      buffer[i] = input_getc();
-    f->eax = size;//return number written
-  }
-  else
+  // Check parameters
+  is_valid_addr_range(buffer, size);
+  if  (fd == 0)
   {
-    /* Write to Files */
-    struct thread_file * thread_file_temp = find_file_id (*user_ptr);
-    if (thread_file_temp)
+    // Read from stdin
+    for (unsigned i = 0; i < size; i++)
     {
-      acquire_lock_f ();//file operating needs lock
-      f->eax = file_read (thread_file_temp->file, buffer, size);
-      release_lock_f ();
-    } 
-    else
-    {
-      f->eax = 0;//can't write,return 0
+      buffer[i] = input_getc();
     }
+    f->eax = size;
+    return; // Exit function here
   }
+  // Handle invalid descriptors
+  if (fd < 0 || fd == 1) // fd=1 is stdout, should not be read from
+  {
+    f->eax = -1;
+    return;
+  }
+  // Find file and read from it
+  struct thread_file *file = find_file_id(fd);
+  if (file == NULL || file->closed)
+  {
+    f->eax = -1; // File doesn't exist or is closed
+    return;
+  }
+
+  acquire_lock_f();
+  // Read from the file
+  int bytes_read = file_read(file->file, buffer, size); // for convenience and extension, use file_read
+  release_lock_f();
+  f->eax = bytes_read;
 }
 
 void sys_write(struct intr_frame *f)
