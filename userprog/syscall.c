@@ -138,6 +138,7 @@ void sys_exit(struct intr_frame *f)
   is_valid_addr(user_ptr + 1);             // check if the next uaddr valid
   int exit_status = *(user_ptr + 1);       // get exit status
   thread_current()->st_exit = exit_status; // set exit status
+  thread_current()->child_elem->exit_status = exit_status ;
   thread_exit();
 }
 

@@ -238,6 +238,7 @@ int process_wait(tid_t child_tid)
     sema_down(&child->wait_sema);
 
   int status = child->exit_status;
+  // int status = thread_current()->st_exit ;
   remove_child(child_tid);
 
   return status;
