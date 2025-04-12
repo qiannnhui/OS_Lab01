@@ -224,21 +224,20 @@ static void start_process(void *_args)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-//  has child_thread_elem
 int process_wait(tid_t child_tid)
 {
   struct child_thread_elem *child = thread_get_child(child_tid);
-  /* this tid is not a direct child of current process
-    or it has waited for it before */
+  // this tid is not a direct child of current process or it has waited for it before
   if (child == NULL)
     return -1;
 
-  /* if the child process still running block for it */
-  if (child->t != NULL && child->t->status != THREAD_DYING) // try to remove != NULL
+  // if the child process still running block for it
+  if (child->t != NULL && child->t->status != THREAD_DYING)
     sema_down(&child->wait_sema);
 
   int status = child->exit_status;
-  remove_child(child_tid);
+  list_remove(&child->elem);
+  free(child);
 
   return status;
 }

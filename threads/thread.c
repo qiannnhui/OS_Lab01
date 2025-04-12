@@ -635,6 +635,7 @@ allocate_tid(void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
+// find if the tid is in the child list
 struct child_thread_elem *
 thread_get_child(tid_t tid)
 {
@@ -648,15 +649,4 @@ thread_get_child(tid_t tid)
       return child_elem;
   }
   return NULL;
-}
-
-bool remove_child(tid_t tid)
-{
-  struct child_thread_elem *child_elem = thread_get_child(tid);
-  if (child_elem == NULL)
-    return false;
-  list_remove(&child_elem->elem);
-  free(child_elem);
-
-  return true;
 }
