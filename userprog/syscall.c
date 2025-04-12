@@ -138,6 +138,7 @@ void sys_exit(struct intr_frame *f)
   is_valid_addr(user_ptr + 1);             // check if the next uaddr valid
   int exit_status = *(user_ptr + 1);       // get exit status
   thread_current()->st_exit = exit_status; // set exit status
+  thread_current()->child_elem->exit_status = exit_status ;
   thread_exit();
 }
 
@@ -145,6 +146,7 @@ void sys_exec(struct intr_frame *f)
 {
   uint32_t *user_ptr = f->esp;
   is_valid_addr(user_ptr + 1); // check if the next uaddr valid
+  is_valid_addr(*(user_ptr + 1));            // check if the file name valid
   is_valid_addr(*(user_ptr + 1));            // check if the file name valid
   char *file_name = (char *)*(user_ptr + 1); // get file name
   f->eax = process_execute(file_name);       // execute the file
@@ -180,8 +182,15 @@ void sys_create(struct intr_frame *f)
 }
 
 void sys_remove(struct intr_frame *f)
-{
-  printf("remove\n");
+{	
+	// print("remove\n") ;
+  uint32_t *user_ptr = f->esp;
+  is_valid_addr (user_ptr + 1);
+  is_valid_addr (*(user_ptr + 1));
+  *user_ptr++;
+  acquire_lock_f ();
+  f->eax = filesys_remove ((const char *)*user_ptr);
+  release_lock_f ();
 }
 
 void sys_open(struct intr_frame *f)
@@ -295,14 +304,13 @@ void sys_close(struct intr_frame *f)
     file_close(t_file->file);
     release_lock_f();
 
-
     t_file->closed = true;           // mark as closed
     list_remove(&t_file->file_elem); // remove from list
     free(t_file);                    // free the struct
   }
   else
   {
-    printf("File descriptor %d not found.\n", fd);
+	f->eax = -1 ;
   }
   f->eax = 0; // success
 }
