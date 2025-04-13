@@ -55,6 +55,15 @@ void *is_valid_addr(const void *user_addr)
     thread_current()->st_exit = -1;
     thread_exit();
   }
+  // check each byte in the page, 1 page = 4 bytes
+  for (const uint8_t *ptr = user_addr; ptr < user_addr + 4; ptr++)
+  {
+    if (!is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL)
+    {
+      thread_current()->st_exit = -1;
+      thread_exit();
+    }
+  }
   return physical_addr;
 }
 
