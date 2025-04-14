@@ -504,19 +504,6 @@ init_thread(struct thread *t, const char *name, int priority)
   t->child_elem = NULL;
   t->max_file_fd = 2; // not 0 or 1
 
-  // //syscall
-  // if (t==initial_thread) t->parent=NULL;
-  // /* Record the parent's thread */
-  // else t->parent = thread_current ();
-  // /* List initialization for lists */
-  // list_init (&t->childs);
-  // list_init (&t->files);
-  // /* Semaphore initialization for lists */
-  // sema_init (&t->sema, 0);
-  // t->success = true;
-  // /* Initialize exit status to MAX */
-  // t->max_file_fd=2;//not 0 or 1
-
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
   intr_set_level(old_level);
@@ -636,17 +623,15 @@ allocate_tid(void)
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
 // find if the tid is in the child list
-struct child_thread_elem *
-thread_get_child(tid_t tid)
-{
-  struct list *children = &thread_current()->children_list;
-  struct list_elem *e = list_begin(children);
-  struct child_thread_elem *child_elem;
-  for (; e != list_end(children); e = list_next(e))
-  {
-    child_elem = list_entry(e, struct child_thread_elem, elem);
-    if (child_elem->tid == tid)
-      return child_elem;
-  }
-  return NULL;
+struct child_thread_elem *thread_get_child(tid_t tid) {
+    struct list *children = &thread_current()->children_list;
+    struct child_thread_elem *child_elem;
+    
+    // Iterate through the children list
+    for (struct list_elem *e = list_begin(children); e != list_end(children); e = list_next(e)) {
+        child_elem = list_entry(e, struct child_thread_elem, elem);
+        if (child_elem->tid == tid)
+            return child_elem;
+    }
+    return NULL; // Return NULL if no matching child is found
 }

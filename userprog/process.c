@@ -161,7 +161,7 @@ static void start_process(void *_args)
   struct thread *cur = thread_current ();
   struct child_thread_elem *child_elem = malloc (sizeof(struct child_thread_elem));
   if (child_elem == NULL) {
-      printf("Failed to allocate memory for child thread element.\n");
+      // printf("Failed to allocate memory for child thread element.\n");
       return TID_ERROR; // Unable to allocate memory, return error
   }
   child_elem->exit_status = -1;

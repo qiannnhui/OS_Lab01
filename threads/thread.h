@@ -25,18 +25,18 @@ typedef int tid_t;
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
 
-// Represents the thread as a child process, stores everything
-// the parent needs to know, persists even after the child process
-// exits, only the parent can destroy it.
 struct child_thread_elem
 {
-  int exit_status;            /* returned by wait (). */
-  int loading_status;         /* to inform parent if the load was successful. */
-  struct semaphore wait_sema; /* used by the parent to block on a child when
-                                 wait () is called on it. */
-  tid_t tid;
-  struct thread *t;      /* pointer to the thread, can be NULL if the process exits. */
-  struct list_elem elem; /* used by parent to put its children in a list. */
+  tid_t tid;                  // Thread ID of the child process.
+  int exit_status;            /* Exit status of the child process. 
+                                 Indicates if the child process exited 
+                                 normally or was killed.*/
+  int loading_status;         /* Loading status of the child process. 
+                                  0 if loaded, -1 if failed to load.*/
+  struct semaphore wait_sema; /* Semaphore to block the parent until 
+                                  the child process is loaded.*/
+  struct thread *t;           // Thread pointer to the child process.
+  struct list_elem elem;      // List element for the list of child processes.
 };
 
 struct thread_file
@@ -133,7 +133,7 @@ struct thread
                                            syscall to be able to be accessed by
                                            parent if this thread is destroyed */
   struct list files;                    /* List of files opened by this thread */
-  int max_file_fd;                      /*store max fd */
+  int max_file_fd;                      /* store max fd */
 };
 
 /* If false (default), use round-robin scheduler.

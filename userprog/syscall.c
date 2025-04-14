@@ -55,7 +55,7 @@ void *is_valid_addr(const void *user_addr)
     thread_current()->st_exit = -1;
     thread_exit();
   }
-  // check each byte in the page, 1 page = 4 bytes
+  // validate the content of page
   for (const uint8_t *ptr = user_addr; ptr < user_addr + 4; ptr++)
   {
     if (!is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL)
@@ -155,7 +155,6 @@ void sys_exec(struct intr_frame *f)
 {
   uint32_t *user_ptr = f->esp;
   is_valid_addr(user_ptr + 1); // check if the next uaddr valid
-  is_valid_addr(*(user_ptr + 1));            // check if the file name valid
   is_valid_addr(*(user_ptr + 1));            // check if the file name valid
   char *file_name = (char *)*(user_ptr + 1); // get file name
   f->eax = process_execute(file_name);       // execute the file
