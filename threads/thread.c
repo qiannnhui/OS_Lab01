@@ -73,17 +73,6 @@ static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
-/*Use a lock to lock process when do file operation*/
-static struct lock lock_f;
-void acquire_lock_f()
-{
-  lock_acquire(&lock_f);
-}
-
-void release_lock_f()
-{
-  lock_release(&lock_f);
-}
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -103,7 +92,6 @@ void thread_init(void)
   ASSERT(intr_get_level() == INTR_OFF);
 
   lock_init(&tid_lock);
-  lock_init(&lock_f); // Initialize the lock for file operations
 
   list_init(&ready_list);
   list_init(&all_list);
@@ -304,34 +292,6 @@ void thread_exit(void)
   intr_disable();
   // print exit status
   printf("%s: exit(%d)\n", thread_name(), thread_current()->st_exit);
-
-#ifdef USERPROG
-  // Close all opened files for this thread
-  struct list *files = &thread_current()->files;
-  if (!list_empty(files))
-  {
-    struct list_elem *e = list_begin(files);
-    while (e != list_end(files))
-    {
-      struct list_elem *next = list_next(e);
-      struct thread_file *f = list_entry(e, struct thread_file, file_elem);
-
-      // DEBUG: print which fd is being closed
-      //printf("[DEBUG] %s: closing fd=%d\n", thread_name(), f->fd);
-
-      if (!f->closed) {
-        acquire_lock_f();
-        file_close(f->file);
-        release_lock_f();
-        f->closed = true; // mark as closed
-      }
-
-      list_remove(&f->file_elem); // remove from list
-      free(f);
-      e = next;
-    }
-  }
-#endif
 
   list_remove(&thread_current()->allelem);
   thread_current()->status = THREAD_DYING;

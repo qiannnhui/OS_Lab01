@@ -179,9 +179,9 @@ void sys_create(struct intr_frame *f)
 
   is_valid_addr(file_name); // validate file_name string
 
-  acquire_lock_f();
+  lock_acquire(&filesys_lock);
   bool success = filesys_create(file_name, initial_size);
-  release_lock_f();
+  lock_release(&filesys_lock);
 
   f->eax = success ? 1 : 0; // true or false// check if the file name is valid
 
@@ -196,9 +196,9 @@ void sys_remove(struct intr_frame *f)
   is_valid_addr (user_ptr + 1);
   is_valid_addr (*(user_ptr + 1));
   *user_ptr++;
-  acquire_lock_f ();
+  lock_acquire(&filesys_lock);
   f->eax = filesys_remove ((const char *)*user_ptr);
-  release_lock_f ();
+  lock_release(&filesys_lock);
 }
 
 void sys_open(struct intr_frame *f)
@@ -208,9 +208,9 @@ void sys_open(struct intr_frame *f)
   char *file_name = (char *)*(user_ptr + 1);
   is_valid_addr(file_name);
 
-  acquire_lock_f();
+  lock_acquire(&filesys_lock);
   struct file *opened_file = filesys_open(file_name);
-  release_lock_f();
+  lock_release(&filesys_lock);
 
   if (opened_file == NULL)
   {
@@ -256,9 +256,9 @@ void sys_filesize(struct intr_frame *f)
     return;
   }
 
-  acquire_lock_f();
+  lock_acquire(&filesys_lock);
   off_t size = file_length(t_file->file); // Get the file size
-  release_lock_f();
+  lock_release(&filesys_lock);
   f->eax = size; // success
   //printf("[DEBUG] %s: filesize fd=%d size=%d\n", thread_name(), fd, size);
 }
@@ -276,9 +276,9 @@ void sys_seek(struct intr_frame *f)
     return;
   }
 
-  acquire_lock_f();
+  lock_acquire(&filesys_lock);
   file_seek(t_file->file, position); // Seek to the specified position
-  release_lock_f();
+  lock_release(&filesys_lock);
   //printf("[DEBUG] %s: seek fd=%d to position=%u\n", thread_name(), fd, position);
 }
 
@@ -294,9 +294,9 @@ void sys_tell(struct intr_frame *f)
     return;
   }
 
-  acquire_lock_f();
+  lock_acquire(&filesys_lock);
   off_t position = file_tell(t_file->file); // Get the current position
-  release_lock_f();
+  lock_release(&filesys_lock);
   f->eax = position; // success
 }
 
@@ -308,9 +308,9 @@ void sys_close(struct intr_frame *f)
   struct thread_file *t_file = find_file_id(fd);
   if (t_file != NULL && !t_file->closed)
   {
-    acquire_lock_f();
+    lock_acquire(&filesys_lock);
     file_close(t_file->file);
-    release_lock_f();
+    lock_release(&filesys_lock);
 
     t_file->closed = true;           // mark as closed
     list_remove(&t_file->file_elem); // remove from list
@@ -356,10 +356,10 @@ void sys_read(struct intr_frame *f)
     return;
   }
 
-  acquire_lock_f();
+  lock_acquire(&filesys_lock);
   // Read from the file
   int bytes_read = file_read(file->file, buffer, size); // for convenience and extension, use file_read
-  release_lock_f();
+  lock_release(&filesys_lock);
   f->eax = bytes_read;
 }
 
@@ -397,9 +397,9 @@ void sys_write(struct intr_frame *f)
   struct thread_file *file = find_file_id(fd);
   if (file != NULL && !file->closed)
   {
-    acquire_lock_f();
+    lock_acquire(&filesys_lock);
     f->eax = file_write(file->file, buffer, size);
-    release_lock_f();
+    lock_release(&filesys_lock);
   }
   else
   {
