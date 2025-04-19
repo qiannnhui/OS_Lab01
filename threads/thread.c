@@ -39,6 +39,9 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+/* used for lab2 */
+static struct list sleep_list ;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame
 {
@@ -74,6 +77,16 @@ void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
 
+/* used by lab2 */
+void thread_sleep(int64_t awake_tick){
+  struct thread* cur_thread = thread_current() ;
+  cur_thread->awake_time = awake_tick ;
+  thread_block() ;
+  list_push_back(&sleep_list, &cur_thread->elem) ;
+  // delete cur_thread->elem from ready list
+}
+
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -101,6 +114,9 @@ void thread_init(void)
   init_thread(initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid();
+
+  /* lab2 */
+  list_init(&sleep_list) ;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -138,6 +154,17 @@ void thread_tick(void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return();
+
+  /* lab2 */
+  for(struct list_elem* now = list_begin(&sleep_list) ; now != list_end(&sleep_list) ; now = now->next){
+    struct thread* t = list_entry(now, struct thread, elem) ;
+    ASSERT(t->status == THREAD_BLOCKED) ;
+    
+    if(t->awake_time >= timer_ticks()){
+      thread_unblock(t) ;
+      list_remove(now) ;
+    }
+  }
 }
 
 /* Prints thread statistics. */

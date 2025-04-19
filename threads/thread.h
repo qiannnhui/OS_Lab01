@@ -134,6 +134,11 @@ struct thread
                                            parent if this thread is destroyed */
   struct list files;                    /* List of files opened by this thread */
   int max_file_fd;                      /* store max fd */
+
+
+
+  /* used by lab2 */
+  int64_t awake_time ;
 };
 
 /* If false (default), use round-robin scheduler.
