@@ -156,7 +156,8 @@ thread_tick (void)
     struct thread* t = list_entry(now, struct thread, elem) ;
     ASSERT(t->status == THREAD_BLOCKED) ;
     
-    tmp_nxt = now->next ;
+    // tmp_nxt = now->next ;
+    tmp_nxt = list_next(now) ;
     if(t->awake_time <= timer_ticks()){
       list_remove(now) ;
       thread_unblock(t) ;
@@ -265,7 +266,24 @@ thread_unblock (struct thread *t)
   list_push_back (&ready_list, &t->elem);
   list_sort (&ready_list, cmp_thread_priority, NULL);
   t->status = THREAD_READY;
+
+  if(!list_empty(&ready_list))
+    running_ready_priority_check() ;
+
   intr_set_level (old_level);
+}
+
+void running_ready_priority_check(){
+  int ready_priority_max = list_entry(list_front(&ready_list), struct thread, elem)->priority;
+  struct thread* t_running = thread_current() ;
+  if(ready_priority_max > t_running->priority){
+    thread_yield() ;
+    // if(thread_current() != t_running){
+      list_sort(&ready_list, cmp_thread_priority, NULL) ;
+      ASSERT(t_running->status != THREAD_RUNNING) ;
+      thread_set_priority(ready_priority_max) ;
+    // }
+  }
 }
 
 /* Returns the name of the running thread. */
