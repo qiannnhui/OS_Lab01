@@ -81,8 +81,8 @@ static tid_t allocate_tid(void);
 void thread_sleep(int64_t awake_tick){
   struct thread* cur_thread = thread_current() ;
   cur_thread->awake_time = awake_tick ;
-  thread_block() ;
   list_push_back(&sleep_list, &cur_thread->elem) ;
+  thread_block() ;
   // delete cur_thread->elem from ready list
 }
 
@@ -156,13 +156,15 @@ void thread_tick(void)
     intr_yield_on_return();
 
   /* lab2 */
-  for(struct list_elem* now = list_begin(&sleep_list) ; now != list_end(&sleep_list) ; now = now->next){
+  struct list_elem* tmp_nxt ;
+  for(struct list_elem* now = list_begin(&sleep_list) ; now != list_end(&sleep_list) ; now = tmp_nxt){
     struct thread* t = list_entry(now, struct thread, elem) ;
     ASSERT(t->status == THREAD_BLOCKED) ;
     
-    if(t->awake_time >= timer_ticks()){
-      thread_unblock(t) ;
+    tmp_nxt = now->next ;
+    if(t->awake_time <= timer_ticks()){
       list_remove(now) ;
+      thread_unblock(t) ;
     }
   }
 }
