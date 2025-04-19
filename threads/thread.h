@@ -182,4 +182,6 @@ int thread_get_load_avg(void);
 void acquire_lock_f(void);
 void release_lock_f(void);
 
+bool cmp_thread_priority(const struct list_elem *, const struct list_elem *, void *);
+
 #endif /* threads/thread.h */
