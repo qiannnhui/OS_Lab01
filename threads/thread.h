@@ -99,8 +99,8 @@ struct thread
 #endif
 
     /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
     int64_t awake_time;
+    unsigned magic;                     /* Detects stack overflow. */
   };
 
 /* If false (default), use round-robin scheduler.

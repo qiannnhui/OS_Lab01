@@ -267,14 +267,18 @@ thread_unblock (struct thread *t)
   list_sort (&ready_list, cmp_thread_priority, NULL);
   t->status = THREAD_READY;
 
-  if(!list_empty(&ready_list))
-    running_ready_priority_check() ;
+  // if(!list_empty(&ready_list))
+  //   running_ready_priority_check() ;
 
   intr_set_level (old_level);
 }
 
 void running_ready_priority_check(){
   int ready_priority_max = list_entry(list_front(&ready_list), struct thread, elem)->priority;
+
+  list_sort (&ready_list, cmp_thread_priority, NULL);
+  ASSERT(ready_priority_max == list_entry(list_front(&ready_list), struct thread, elem)->priority) ;
+
   struct thread* t_running = thread_current() ;
   if(ready_priority_max > t_running->priority){
     thread_yield() ;
@@ -379,7 +383,29 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  // printf("thread_set_priority\n") ;
   thread_current ()->priority = new_priority;
+  /*lab2*/
+
+  struct list_elem* e = list_front(&ready_list) ;
+
+  list_sort (&ready_list, cmp_thread_priority, NULL); 
+  int max_priority = list_entry (e, struct thread, elem)->priority;
+
+  // printf("-----------------------\n") ;
+  // for(struct list_elem* now = list_begin(&ready_list) ; now != list_end(&ready_list) ; now = list_next(now)){
+  //   struct thread* t = list_entry(now, struct thread, elem) ;
+  //   ASSERT(t->status == THREAD_READY) ;
+    
+  //   // tmp_nxt = now->next ;
+  //   printf("Thread name: %s, priority: %d \n", t->name, t->priority) ;
+  // }
+  // printf("-----------------------\n") ;
+
+  if(new_priority < max_priority){
+    thread_yield() ;
+  }
+  ASSERT(thread_current()->priority == max_priority) ;
 }
 
 /* Returns the current thread's priority. */
@@ -536,8 +562,11 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
+  else{
+    list_sort (&ready_list, cmp_thread_priority, NULL); // redundant    
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  }
+
 }
 
 /* Completes a thread switch by activating the new thread's page
