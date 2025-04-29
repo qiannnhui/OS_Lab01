@@ -126,7 +126,6 @@ void thread_sleep(int64_t awake_tick){
   cur_thread->awake_time = awake_tick ;
   list_push_back(&sleep_list, &cur_thread->elem) ;
   thread_block() ;
-  // delete cur_thread->elem from ready list
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -227,6 +226,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  if(priority > thread_current()->priority)
+    thread_yield() ;
+
   return tid;
 }
 
@@ -285,7 +287,7 @@ void running_ready_priority_check(){
     // if(thread_current() != t_running){
       list_sort(&ready_list, cmp_thread_priority, NULL) ;
       ASSERT(t_running->status != THREAD_RUNNING) ;
-      thread_set_priority(ready_priority_max) ;
+      // thread_set_priority(ready_priority_max) ;
     // }
   }
 }
@@ -355,8 +357,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
+  if (cur != idle_thread){
     list_push_back (&ready_list, &cur->elem);
+    list_sort(&ready_list, cmp_thread_priority, NULL) ;
+  } 
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -383,14 +387,20 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  
   // printf("thread_set_priority\n") ;
   thread_current ()->priority = new_priority;
   /*lab2*/
-
-  struct list_elem* e = list_front(&ready_list) ;
+  if(list_empty(&ready_list)){
+    return ;
+  }
 
   list_sort (&ready_list, cmp_thread_priority, NULL); 
-  int max_priority = list_entry (e, struct thread, elem)->priority;
+
+  struct list_elem* e = list_front(&ready_list) ;
+  struct thread* t_biggest = list_entry (e, struct thread, elem) ;
+
+  int max_priority = t_biggest->priority;
 
   // printf("-----------------------\n") ;
   // for(struct list_elem* now = list_begin(&ready_list) ; now != list_end(&ready_list) ; now = list_next(now)){
@@ -402,10 +412,18 @@ thread_set_priority (int new_priority)
   // }
   // printf("-----------------------\n") ;
 
-  if(new_priority < max_priority){
+  enum intr_level old_level;
+  old_level = intr_disable ();
+   
+  if(new_priority <= max_priority){
+    // printf("Now Thread name: %s, priority: %d \n", thread_current()->name, thread_current()->priority) ;
+    // printf("Biggest ready Thread name: %s, priority: %d \n", t_biggest->name, t_biggest->priority) ;
     thread_yield() ;
+    // printf("Now Thread name: %s, priority: %d \n", thread_current()->name, thread_current()->priority) ;
+    // ASSERT(thread_current()->priority == max_priority) ;
   }
-  ASSERT(thread_current()->priority == max_priority) ;
+
+  intr_set_level (old_level);
 }
 
 /* Returns the current thread's priority. */
