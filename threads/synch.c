@@ -178,6 +178,10 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
+  lock->max_priority = 0; // initialize the max_priority to 0
+  lock->elem.prev = NULL; // initialize the previous element to NULL
+  lock->elem.next = NULL; // initialize the next element to NULL
+
   sema_init (&lock->semaphore, 1);
 }
 
@@ -195,6 +199,25 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+
+  /* lab2 */
+  
+  /* If the lock is already held by another thread, we need to
+     donate our priority to that thread. */
+  struct thread *cur = thread_current();
+  if (lock->holder != NULL) {
+    cur->locker = lock->holder; // assign the prev holder to the current thread's locker
+    list_push_back(&lock->holder->lock_list, &lock->elem); // put all the threads that are waiting for the lock in the locker thread's lock_list
+    
+    // check if the current thread's priority is greater than the lock holder's priority
+    while (cur->locker != NULL) {
+      struct thread *locker = cur->locker;
+      if (cur->priority > locker->priority) {
+        locker->priority = cur->priority;
+      }
+      cur = locker;
+    }
+  }
 
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
@@ -230,6 +253,11 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+
+  /* lab2 */
+  struct thread *cur = thread_current();
+  cur->priority = cur->actual_priority; // set the current thread's priority to its actual priority
+  
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
