@@ -211,30 +211,36 @@ lock_acquire (struct lock *lock)
   
   /* If the lock is already held by another thread, we need to
      donate our priority to that thread. */
-  struct thread *cur = thread_current();
-  if (lock->holder != NULL) {
-    cur->locker = lock; // assign the prev holder to the current thread's locker
-    // list_push_back(&lock->holder->lock_list, &lock->elem); // put all the threads that are waiting for the lock in the locker thread's lock_list
-    
-    // check if the current thread's priority is greater than the lock holder's priority
-    struct lock *tmp_locker = cur->locker;
-    while (tmp_locker != NULL) {
-      if (cur->priority > tmp_locker->holder->priority) {
-        tmp_locker->max_priority = cur->priority; // set the max_priority to the current thread's priority
-        tmp_locker->holder->priority = cur->priority;
+  if (!thread_mlfqs)
+  {  
+    struct thread *cur = thread_current();
+    if (lock->holder != NULL) {
+      cur->locker = lock; // assign the prev holder to the current thread's locker
+      // list_push_back(&lock->holder->lock_list, &lock->elem); // put all the threads that are waiting for the lock in the locker thread's lock_list
+      
+      // check if the current thread's priority is greater than the lock holder's priority
+      struct lock *tmp_locker = cur->locker;
+      while (tmp_locker != NULL) {
+        if (cur->priority > tmp_locker->holder->priority) {
+          tmp_locker->max_priority = cur->priority; // set the max_priority to the current thread's priority
+          tmp_locker->holder->priority = cur->priority;
+        }
+        tmp_locker = tmp_locker->holder->locker;
       }
-      tmp_locker = tmp_locker->holder->locker;
+    }
+    else {
+      cur->locker = NULL; // set the current thread's locker to NULL
+      lock->max_priority = cur->priority; // set the max_priority to the current thread's priority, redundent?
     }
   }
-  else {
-    cur->locker = NULL; // set the current thread's locker to NULL
-    lock->max_priority = cur->priority; // set the max_priority to the current thread's priority, redundent?
-  }
-
+  
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
   /* lab2 */
-  list_push_back(&thread_current()->lock_list, &lock->elem); // put all the threads that are waiting for the lock in the locker thread's lock_list
+  if (!thread_mlfqs)
+  {  
+    list_push_back(&thread_current()->lock_list, &lock->elem); // put all the threads that are waiting for the lock in the locker thread's lock_list
+  }
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -269,20 +275,22 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   /* lab2 */
-  struct thread *cur = thread_current();
-  list_remove(&lock->elem); // remove the lock from the locker thread's lock_list
-  int max_priority = cur->actual_priority; // set the max_priority to the current thread's actual priority
-  struct list_elem *e;
-  if (!list_empty(&cur->lock_list)) {
-    for (e = list_begin(&cur->lock_list); e != list_end(&cur->lock_list); e = list_next(e)) {
-      struct lock *l = list_entry(e, struct lock, elem);
-      if (l->max_priority > max_priority) {
-        max_priority = l->max_priority;
+  if (!thread_mlfqs)
+  {  
+    struct thread *cur = thread_current();
+    list_remove(&lock->elem); // remove the lock from the locker thread's lock_list
+    int max_priority = cur->actual_priority; // set the max_priority to the current thread's actual priority
+    struct list_elem *e;
+    if (!list_empty(&cur->lock_list)) {
+      for (e = list_begin(&cur->lock_list); e != list_end(&cur->lock_list); e = list_next(e)) {
+        struct lock *l = list_entry(e, struct lock, elem);
+        if (l->max_priority > max_priority) {
+          max_priority = l->max_priority;
+        }
       }
     }
+    cur->priority = max_priority; // set the current thread's priority to the max_priority
   }
-  cur->priority = max_priority; // set the current thread's priority to the max_priority
-
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
