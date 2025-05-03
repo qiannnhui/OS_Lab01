@@ -389,7 +389,17 @@ thread_set_priority (int new_priority)
 {
   
   // printf("thread_set_priority\n") ;
-  thread_current ()->priority = new_priority;
+  thread_current ()->actual_priority = new_priority;
+  // check if new_priority is greater than the current thread's priority
+  if (new_priority > thread_current()->priority) {
+    thread_current()->priority = new_priority;
+    thread_yield();
+  }
+  // if the current thread is not holding any locks, recover its priority to the actual priority
+  if (list_empty(&thread_current()->lock_list)) {
+    thread_current()->priority = thread_current()->actual_priority;
+    thread_yield();
+  }
   /*lab2*/
   if(list_empty(&ready_list)){
     return ;
@@ -584,7 +594,6 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else{
-    list_sort (&ready_list, cmp_thread_priority, NULL); // redundant    
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
   }
 

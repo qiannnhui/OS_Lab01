@@ -98,7 +98,8 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-    struct thread *locker; /* The thread that locks the current thread. */
+   //  struct thread *locker; /* The thread that locks the current thread. */
+    struct lock *locker; /* The thread that locks the current thread. */
     struct list lock_list; /* The list of locks held by the current thread. */
     int actual_priority; /* The actual priority of the current thread. */
     /* Owned by thread.c. */
