@@ -5,6 +5,7 @@
 #define q 14
 #define f (1<<q)
 
+// X, Y: fixed point numbers; N: integer
 #define CONVERT_N_TO_FIXED_POINT(n)             ((n)*(f))
 #define CONVERT_X_TO_INTEGER_ZERO(x)            ((x)/(f))
 #define CONVERT_X_TO_INTEGER_NEAREST(x)         (((x)>=0)?(((x)+(f)/2)/(f)):(((x)-(f)/2)/(f)))
