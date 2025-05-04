@@ -710,39 +710,60 @@ bool thread_is_idle(struct thread* t){
 }
 
 void thread_mlfqs_load_avg(void){
-  // int ready_threads = list_size(&ready_list) ;
-  // if(!thread_is_idle(thread_current()))
-  //   ready_threads++ ;
+  int ready_threads = list_size(&ready_list) ;
+  if(!thread_is_idle(thread_current()))
+    ready_threads++ ;
 
-  // int temp = ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 59), ready_threads) ;
-  // load_avg = DIVIDE_X_BY_N(temp, 60) ;
+  int temp = ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 59), ready_threads) ;
+  load_avg = DIVIDE_X_BY_N(temp, 60) ;
 
 /* Modify load average */
-  int ready_threads = list_size(&ready_list);
-  if (thread_current()!=idle_thread){
-    ready_threads++;
-  }
-  int64_t fa = MULTIPLY_X_BY_N(load_avg,59);
-  int add1 = DIVIDE_X_BY_N(fa,60);
-  int add2 = DIVIDE_X_BY_N(CONVERT_N_TO_FIXED_POINT(ready_threads),60);
-  load_avg = ADD_X_AND_Y(add1,add2);
+  // int ready_threads = list_size(&ready_list);
+  // if (thread_current()!=idle_thread){
+  //   ready_threads++;
+  // }
+  // int64_t fa = MULTIPLY_X_BY_N(load_avg,59);
+  // int add1 = DIVIDE_X_BY_N(fa,60);
+  // int add2 = DIVIDE_X_BY_N(CONVERT_N_TO_FIXED_POINT(ready_threads),60);
+  // load_avg = ADD_X_AND_Y(add1,add2);
 }
 
 void thread_mlfqs_recent_cpu(struct thread* t){
-  // if (!thread_is_idle(t)){
-  //   t->recent_cpu = ADD_X_AND_Y(
-  //     MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(MULTIPLY_X_BY_N(load_avg, 2), ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 2), CONVERT_N_TO_FIXED_POINT(1))), t->recent_cpu),
-  //     t->nice
-  //   );
-  // }
+  if (!thread_is_idle(t)){
+    int64_t ld2 = INT_TO_FP(2*load_avg) ;
+    int64_t ld2p1 = INT_TO_FP(2*load_avg+1) ;
+
+    int64_t cpu_fp = t->recent_cpu * DIV_X_Y(ld2, ld2p1) + INT_TO_FP(t->nice) ;
+
+    t->recent_cpu = FP_TO_INT(cpu_fp) ;
+
+    // t->recent_cpu = 
+    // ADD_X_AND_Y(
+    //   MULTIPLY_X_BY_Y(
+    //     DIVIDE_X_BY_Y(
+    //       MULTIPLY_X_BY_N(
+    //         load_avg, 
+    //         2
+    //       ), 
+    //       ADD_X_AND_N(
+    //         MULTIPLY_X_BY_N(
+    //           load_avg, 
+    //           2
+    //         ), 
+    //         CONVERT_N_TO_FIXED_POINT(1))), 
+    //       t->recent_cpu
+    //     ),
+    //   t->nice
+    // );
+  }
 
   /* Modify recent_cpu */
-  if (t != idle_thread){
-  int64_t fa = MULTIPLY_X_BY_N(load_avg,2);
-  int64_t fb = MULTIPLY_X_BY_N(load_avg,2)+CONVERT_N_TO_FIXED_POINT(1);
-  t->recent_cpu = MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(fa,fb),t->recent_cpu)+
-  CONVERT_N_TO_FIXED_POINT(t->nice);
-  }
+  // if (t != idle_thread){
+  // int64_t fa = MULTIPLY_X_BY_N(load_avg,2);
+  // int64_t fb = MULTIPLY_X_BY_N(load_avg,2)+CONVERT_N_TO_FIXED_POINT(1);
+  // t->recent_cpu = MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(fa,fb),t->recent_cpu)+
+  // CONVERT_N_TO_FIXED_POINT(t->nice);
+  // }
 }
 
 void thread_mlfqs_priority(struct thread* t){
