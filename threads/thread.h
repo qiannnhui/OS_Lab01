@@ -149,4 +149,10 @@ int thread_get_load_avg (void);
 bool cmp_thread_priority(const struct list_elem *, const struct list_elem *, void *);
 void running_ready_priority_check(void) ;
 
+/* lab2 */
+bool thread_is_idle(struct thread *) ;
+void thread_mlfqs_load_avg(void) ;
+void thread_mlfqs_recent_cpu(struct thread *) ;
+void thread_mlfqs_priority(struct thread *) ;
+
 #endif /* threads/thread.h */

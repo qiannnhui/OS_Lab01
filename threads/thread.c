@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed_points.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -72,6 +73,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+int load_avg;
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -448,6 +450,9 @@ void
 thread_set_nice (int nice UNUSED) 
 {
   /* Not yet implemented. */
+  thread_current()->nice = nice ;
+  thread_mlfqs_priority(thread_current()) ;
+  thread_yield() ;
 }
 
 /* Returns the current thread's nice value. */
@@ -455,7 +460,8 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  // return 0;
+  return thread_current()->nice ;
 }
 
 /* Returns 100 times the system load average. */
@@ -463,7 +469,8 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  // return 0;
+  return CONVERT_X_TO_INTEGER_NEAREST(MULTIPLY_X_BY_N(load_avg, 100)) ;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -471,7 +478,8 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  // return 0;
+  return CONVERT_X_TO_INTEGER_NEAREST(MULTIPLY_X_BY_N(thread_current()->recent_cpu, 100)) ;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -691,4 +699,39 @@ bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, v
   struct thread *tb = list_entry (b, struct thread, elem);
 
   return ta->priority > tb->priority;
+}
+
+
+bool thread_is_idle(struct thread* t){
+  return t == idle_thread ;
+}
+
+void thread_mlfqs_load_avg(void){
+  int ready_threads = list_size(&ready_list) ;
+  if(!thread_is_idle(thread_current()))
+    ready_threads++ ;
+
+  int temp = ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 59), ready_threads) ;
+  load_avg = DIVIDE_X_BY_N(temp, 60) ;
+}
+
+void thread_mlfqs_recent_cpu(struct thread* t){
+  if (!thread_is_idle(t)){
+    t->recent_cpu = ADD_X_AND_Y(
+      MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(MULTIPLY_X_BY_N(load_avg, 2), ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 2), CONVERT_N_TO_FIXED_POINT(1))), t->recent_cpu),
+      t->nice
+    );
+  }
+}
+
+void thread_mlfqs_priority(struct thread* t){
+  if (!thread_is_idle(t)){
+    //priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
+    t->priority = SUBTRACT_N_FROM_X(PRI_MAX, ADD_X_AND_N(DIVIDE_X_BY_N(t->recent_cpu, 4), MULTIPLY_X_BY_N(t->nice, 2))) ;
+    // clamp priority to [PRI_MIN, PRI_MAX]
+    if (t->priority < PRI_MIN)
+      t->priority = PRI_MIN;
+    if (t->priority > PRI_MAX)
+      t->priority = PRI_MAX;
+  }
 }
