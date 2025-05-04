@@ -182,7 +182,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
     {
       struct thread *cur = thread_current() ;
       if (!thread_is_idle(cur))
-        cur->recent_cpu = ADD_X_AND_N(cur->recent_cpu, 1) ;
+        cur->recent_cpu = cur->recent_cpu + INT_TO_FP(1) ;
       if (timer_ticks() % TIMER_FREQ == 0)
         {
           thread_mlfqs_load_avg() ;

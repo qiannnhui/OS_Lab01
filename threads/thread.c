@@ -73,7 +73,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-int load_avg;
+int64_t load_avg;
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -471,7 +471,7 @@ thread_get_load_avg (void)
 {
   /* Not yet implemented. */
   // return 0;
-  return CONVERT_X_TO_INTEGER_NEAREST(MULTIPLY_X_BY_N(load_avg, 100)) ;
+  return FP_TO_INT(load_avg * 100) ;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -480,7 +480,7 @@ thread_get_recent_cpu (void)
 {
   /* Not yet implemented. */
   // return 0;
-  return CONVERT_X_TO_INTEGER_NEAREST(MULTIPLY_X_BY_N(thread_current()->recent_cpu, 100)) ;
+  return FP_TO_INT(thread_current()->recent_cpu* 100) ;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -714,35 +714,27 @@ void thread_mlfqs_load_avg(void){
   if(!thread_is_idle(thread_current()))
     ready_threads++ ;
 
-  int temp = ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 59), ready_threads) ;
-  load_avg = DIVIDE_X_BY_N(temp, 60) ;
+  load_avg = (load_avg*59 + INT_TO_FP(ready_threads)) / 60 ;
 }
 
 void thread_mlfqs_recent_cpu(struct thread* t){
   if (!thread_is_idle(t)){
-    t->recent_cpu = 
-    ADD_X_AND_Y(
-      MULTIPLY_X_BY_Y(
-        DIVIDE_X_BY_Y(
-            MULTIPLY_X_BY_N(load_avg, 2), 
-            ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 2), 1)), 
-        t->recent_cpu), 
-      CONVERT_N_TO_FIXED_POINT(t->nice)
-    );
+    int64_t div1 = DIV_X_Y(2*load_avg, 2*load_avg + INT_TO_FP(1)) ;
+    int64_t cpu_fp = MULT_X_Y(div1, t->recent_cpu) ;
+    t->recent_cpu = cpu_fp + INT_TO_FP(t->nice) ;
   }
 }
 
 void thread_mlfqs_priority(struct thread* t){
-  if (!thread_is_idle(t)){
-    //priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
-    t->priority = CONVERT_X_TO_INTEGER_NEAREST(
-      CONVERT_N_TO_FIXED_POINT(PRI_MAX)
-       - DIVIDE_X_BY_N(t->recent_cpu, 4)
-        - CONVERT_N_TO_FIXED_POINT(MULTIPLY_X_BY_N(t->nice, 2))) ;
-    // clamp priority to [PRI_MIN, PRI_MAX]
-    if (t->priority < PRI_MIN)
-      t->priority = PRI_MIN;
-    if (t->priority > PRI_MAX)
-      t->priority = PRI_MAX;
+  if(!thread_is_idle(t)){
+    int64_t pri_fp = INT_TO_FP(PRI_MAX) - (t->recent_cpu / 4) - INT_TO_FP(t->nice * 2) ;
+    int pri = FP_TO_INT(pri_fp) ;
+
+    if(pri > PRI_MAX)
+      pri = PRI_MAX ;
+    else if(pri < PRI_MIN)
+      pri = PRI_MIN ;
+
+    t->priority = pri ;
   }
 }

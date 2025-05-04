@@ -104,7 +104,7 @@ struct thread
     int actual_priority; /* The actual priority of the current thread. */
    //  thread_mlfqs
     int nice; /* The nice value of the current thread. */
-    int recent_cpu; /* The recent CPU value of the current thread. */
+    int64_t recent_cpu; /* The recent CPU value of the current thread. */
     
     /* Owned by thread.c. */
     int64_t awake_time;
