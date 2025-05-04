@@ -710,56 +710,36 @@ bool thread_is_idle(struct thread* t){
 }
 
 void thread_mlfqs_load_avg(void){
-  // int ready_threads = list_size(&ready_list) ;
-  // if(!thread_is_idle(thread_current()))
-  //   ready_threads++ ;
+  int ready_threads = list_size(&ready_list) ;
+  if(!thread_is_idle(thread_current()))
+    ready_threads++ ;
 
-  // int temp = ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 59), ready_threads) ;
-  // load_avg = DIVIDE_X_BY_N(temp, 60) ;
-
-/* Modify load average */
-  int ready_threads = list_size(&ready_list);
-  if (thread_current()!=idle_thread){
-    ready_threads++;
-  }
-  int64_t fa = MULTIPLY_X_BY_N(load_avg,59);
-  int add1 = DIVIDE_X_BY_N(fa,60);
-  int add2 = DIVIDE_X_BY_N(CONVERT_N_TO_FIXED_POINT(ready_threads),60);
-  load_avg = ADD_X_AND_Y(add1,add2);
+  int temp = ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 59), ready_threads) ;
+  load_avg = DIVIDE_X_BY_N(temp, 60) ;
 }
 
 void thread_mlfqs_recent_cpu(struct thread* t){
-  // if (!thread_is_idle(t)){
-  //   t->recent_cpu = ADD_X_AND_Y(
-  //     MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(MULTIPLY_X_BY_N(load_avg, 2), ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 2), CONVERT_N_TO_FIXED_POINT(1))), t->recent_cpu),
-  //     t->nice
-  //   );
-  // }
-
-  /* Modify recent_cpu */
-  if (t != idle_thread){
-  int64_t fa = MULTIPLY_X_BY_N(load_avg,2);
-  int64_t fb = MULTIPLY_X_BY_N(load_avg,2)+CONVERT_N_TO_FIXED_POINT(1);
-  t->recent_cpu = MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(fa,fb),t->recent_cpu)+
-  CONVERT_N_TO_FIXED_POINT(t->nice);
+  if (!thread_is_idle(t)){
+    t->recent_cpu = 
+    ADD_X_AND_Y(
+      MULTIPLY_X_BY_Y(
+        DIVIDE_X_BY_Y(
+            MULTIPLY_X_BY_N(load_avg, 2), 
+            ADD_X_AND_N(MULTIPLY_X_BY_N(load_avg, 2), 1)), 
+        t->recent_cpu), 
+      CONVERT_N_TO_FIXED_POINT(t->nice)
+    );
   }
 }
 
 void thread_mlfqs_priority(struct thread* t){
-  // if (!thread_is_idle(t)){
-  //   //priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
-  //   t->priority = SUBTRACT_N_FROM_X(PRI_MAX, ADD_X_AND_N(DIVIDE_X_BY_N(t->recent_cpu, 4), MULTIPLY_X_BY_N(t->nice, 2))) ;
-  //   // clamp priority to [PRI_MIN, PRI_MAX]
-  //   if (t->priority < PRI_MIN)
-  //     t->priority = PRI_MIN;
-  //   if (t->priority > PRI_MAX)
-  //     t->priority = PRI_MAX;
-  // }
-
-  if (t!=idle_thread){
+  if (!thread_is_idle(t)){
     //priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
-    t->priority = CONVERT_X_TO_INTEGER_NEAREST(CONVERT_N_TO_FIXED_POINT(PRI_MAX)-
-    t->recent_cpu/4-CONVERT_N_TO_FIXED_POINT(2*t->nice));
+    t->priority = CONVERT_X_TO_INTEGER_NEAREST(
+      CONVERT_N_TO_FIXED_POINT(PRI_MAX)
+       - DIVIDE_X_BY_N(t->recent_cpu, 4)
+        - CONVERT_N_TO_FIXED_POINT(MULTIPLY_X_BY_N(t->nice, 2))) ;
+    // clamp priority to [PRI_MIN, PRI_MAX]
     if (t->priority < PRI_MIN)
       t->priority = PRI_MIN;
     if (t->priority > PRI_MAX)
