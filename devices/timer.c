@@ -187,10 +187,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
         {
           thread_mlfqs_load_avg() ;
           thread_foreach(thread_mlfqs_recent_cpu, NULL) ;
-        }
-      if (timer_ticks() % 4 == 0)
-        {
           thread_foreach(thread_mlfqs_priority, NULL) ;
+        }
+      if (timer_ticks() % 4 == 0 && timer_ticks() % TIMER_FREQ != 0)
+        {
+          // thread_foreach(thread_mlfqs_priority, NULL) ;
+          thread_mlfqs_priority(cur) ;
         }
     }
 }
